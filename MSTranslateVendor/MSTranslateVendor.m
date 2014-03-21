@@ -18,6 +18,7 @@
     NSMutableData *_responseData;
     NSMutableURLRequest *_request;
     NSString *_elementString;
+    NSMutableString * elementContents;
     NSMutableArray *_attributeCollection;
     NSMutableArray *_translatedArray;
     NSMutableDictionary *_sentencesDict;
@@ -384,6 +385,14 @@ NSString * generateSchema(NSString * text)
 - (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName attributes:(NSDictionary *)attributeDict
 {
     _elementString = [elementName copy];
+
+    if(parser.tag == REQUEST_TRANSLATE_ARRAY_TAG)
+    {
+        if([elementName isEqualToString:@"TranslatedText"])
+        {
+            elementContents = [NSMutableString string];
+        }
+    }
 }
 
 - (void)parser:(NSXMLParser *)parser foundCharacters:(NSString *)string
@@ -420,7 +429,7 @@ NSString * generateSchema(NSString * text)
     {
         if([_elementString isEqualToString:@"TranslatedText"])
         {
-            [_translatedArray addObject:string];
+            [elementContents appendString: string];
         }
     }
     else if(parser.tag == REQUEST_DETECT_TEXT_TAG)
@@ -459,6 +468,17 @@ NSString * generateSchema(NSString * text)
             _sentenceCount ++;
         }
     }
+}
+
+- (void)parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName
+{
+    if(parser.tag == REQUEST_TRANSLATE_ARRAY_TAG)
+    {
+        if([elementName isEqualToString:@"TranslatedText"])
+        {
+            [_translatedArray addObject: [elementContents copy]];
+        }
+    } // End of translated
 }
 
 @end
