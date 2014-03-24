@@ -150,37 +150,63 @@ NSString * generateSchema(NSString * text)
     _request = [[NSMutableURLRequest alloc] init];
     
     NSString *_appId = [NSString stringWithFormat:@"Bearer %@", (!_accessToken)?[MSTranslateAccessTokenRequester sharedRequester].accessToken:_accessToken];
-
-    NSMutableString *schemaCollection = [@"" mutableCopy];
+    
+    NSXMLElement *root = [[NSXMLElement alloc] initWithName:@"TranslateArrayRequest"];
+    [root addChild: [NSXMLElement elementWithName: @"AppId"]];
+    
+    if(0 != from.length)
+    {
+        NSXMLElement * fromElement = [NSXMLElement elementWithName: @"From" stringValue: from];
+        [root addChild: fromElement];
+    } // End of from length
+    
+    NSXMLElement * optionsNode = [NSXMLElement elementWithName: @"Options"];
+    
+    NSXMLElement * categoryNode = [NSXMLElement elementWithName: @"Category"];
+    [categoryNode addAttribute: [NSXMLNode attributeWithName: @"xmlns" stringValue: @"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2"]];
+    [optionsNode addChild: categoryNode];
+    
+    NSXMLElement * contentTypeNode = [NSXMLElement elementWithName: @"ContentType" stringValue: @"text/plain"];
+    [contentTypeNode addAttribute: [NSXMLNode attributeWithName: @"xmlns" stringValue: @"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2"]];
+    [optionsNode addChild: contentTypeNode];
+    
+    NSXMLElement * reservedFlagsNode = [NSXMLElement elementWithName: @"ReservedFlags"];
+    [reservedFlagsNode addAttribute: [NSXMLNode attributeWithName: @"xmlns" stringValue: @"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2"]];
+    [optionsNode addChild: reservedFlagsNode];
+    
+    NSXMLElement * stateNode = [NSXMLElement elementWithName: @"State"];
+    [stateNode addAttribute: [NSXMLNode attributeWithName: @"xmlns" stringValue: @"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2"]];
+    [optionsNode addChild: stateNode];
+    
+    NSXMLElement * uriNode = [NSXMLElement elementWithName: @"Uri"];
+    [uriNode addAttribute: [NSXMLNode attributeWithName: @"xmlns" stringValue: @"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2"]];
+    [optionsNode addChild: uriNode];
+    
+    NSXMLElement * userNode = [NSXMLElement elementWithName: @"User"];
+    [userNode addAttribute: [NSXMLNode attributeWithName: @"xmlns" stringValue: @"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2"]];
+    [optionsNode addChild: userNode];
+    
+    [root addChild: optionsNode];
+    
+    NSXMLElement * textsNode = [NSXMLElement elementWithName: @"Texts"];
     for (NSString *text in translateArray)
     {
-        [schemaCollection appendFormat:@"%@\n", generateSchema(text)];
-    }
+        NSXMLElement * stringNode = [NSXMLElement elementWithName: @"string" stringValue: text];
+        [stringNode addAttribute: [NSXMLNode attributeWithName: @"xmlns" stringValue: @"http://schemas.microsoft.com/2003/10/Serialization/Arrays"]];
+        [textsNode addChild: stringNode];
+    } // End of for loop
     
-    NSString *xmlString = [NSString stringWithFormat:@"<TranslateArrayRequest>\n\
-    <AppId />\n\
-    %@\n\
-    <Options>\n\
-    <Category xmlns=\"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2\" />\n\
-    <ContentType xmlns=\"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2\">text/plain</ContentType>\n\
-    <ReservedFlags xmlns=\"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2\" />\n\
-    <State xmlns=\"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2\" />\n\
-    <Uri xmlns=\"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2\" />\n\
-    <User xmlns=\"http://schemas.datacontract.org/2004/07/Microsoft.MT.Web.Service.V2\" />\n\
-    </Options>\n\
-    <Texts> %@ </Texts>\n\
-    <To>%@</To>\n\
-    </TranslateArrayRequest>", from?[NSString stringWithFormat:@"<From>%@</From>",from]:@"", schemaCollection, to];
+    [root addChild: textsNode];
+    [root addChild: [NSXMLElement elementWithName: @"To" stringValue: to]];
     
-    NSError *error = NULL;
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"\\s{2,}" options:0 error:&error];
-    NSString *result = [regex stringByReplacingMatchesInString:xmlString options:0 range:NSMakeRange(0, [xmlString length]) withTemplate:@" "];
+    NSXMLDocument *xmlRequest = [NSXMLDocument documentWithRootElement: root];
+    NSData * xmlData = [xmlRequest XMLDataWithOptions: NSXMLNodePrettyPrint];
     
     NSURL *requestURL = [NSURL URLWithString:@"http://api.microsofttranslator.com/v2/Http.svc/TranslateArray"];
     
     [_request setURL:[requestURL standardizedURL]];
     [_request setHTTPMethod:@"POST"];
-    [_request setHTTPBody:[result dataUsingEncoding:NSUTF8StringEncoding]];
+    [_request setHTTPBody: xmlData];
     [_request setValue:@"text/xml" forHTTPHeaderField:@"Content-Type"];
     [_request setValue:_appId forHTTPHeaderField:@"Authorization"];
     
